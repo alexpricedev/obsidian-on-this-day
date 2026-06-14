@@ -8,15 +8,46 @@ export interface DateParts {
   day: number; // 1-31
 }
 
+export interface MediaCounts {
+  images: number;
+  videos: number;
+}
+
 export interface Note {
   absPath: string;
   relPath: string; // relative to vault root, used for the obsidian:// link
   title: string;
   body: string; // content with frontmatter stripped
   date: DateParts | null;
+  media: MediaCounts; // embedded photos/videos referenced in the note
 }
 
 const ISO_DATE = /(\d{4})-(\d{2})-(\d{2})/;
+
+const IMAGE_EXT = /\.(jpe?g|png|gif|webp|heic|heif|bmp|svg|avif)$/i;
+const VIDEO_EXT = /\.(mp4|mov|m4v|webm|avi|mkv)$/i;
+
+/**
+ * Count embedded media in a note. The vault uses both standard markdown
+ * embeds — `![](file.jpeg)` — and Obsidian wikilink embeds — `![[file.mp4]]`
+ * (optionally `![[file.jpeg|size]]`). The actual files aren't shipped to the
+ * email; these counts drive "2 photos · 1 video" placeholders so the reader
+ * knows to open the note in Obsidian.
+ */
+function countMedia(body: string): MediaCounts {
+  const targets: string[] = [];
+  for (const m of body.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)) targets.push(m[1]);
+  for (const m of body.matchAll(/!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g)) targets.push(m[1]);
+
+  let images = 0;
+  let videos = 0;
+  for (const raw of targets) {
+    const path = raw.trim().split(/[?#]/)[0]; // drop any ?query / #anchor
+    if (IMAGE_EXT.test(path)) images++;
+    else if (VIDEO_EXT.test(path)) videos++;
+  }
+  return { images, videos };
+}
 
 function partsFromIso(value: string): DateParts | null {
   const m = value.match(ISO_DATE);
@@ -112,6 +143,7 @@ export async function loadNotes(vaultDir: string): Promise<Note[]> {
       title: titleOf(body, name),
       body,
       date: await resolveDate(absPath, name, fm, vaultDir),
+      media: countMedia(body),
     });
   }
   return notes;

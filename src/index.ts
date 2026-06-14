@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { syncVault } from "./git";
 import { renderEmail, sendEmail } from "./email";
 import { loadNotes, type DateParts, type Note } from "./vault";
@@ -21,11 +22,26 @@ function londonToday(): DateParts {
 }
 
 async function main() {
-  const cacheDir = process.env.VAULT_CACHE_DIR ?? "./.vault-cache";
-  await syncVault({ repo: env("GITHUB_REPO"), token: env("GITHUB_TOKEN"), cacheDir });
+  const vaultName = env("VAULT_NAME");
+
+  // Two source modes:
+  //   local  — VAULT_ROOT_PATH points at a folder already on disk
+  //   github — clone the vault repo (used on Railway, which has no local copy)
+  let vaultDir: string;
+  if (process.env.VAULT_ROOT_PATH) {
+    vaultDir = join(process.env.VAULT_ROOT_PATH, vaultName);
+  } else {
+    const cacheDir = process.env.VAULT_CACHE_DIR ?? "./.vault-cache";
+    vaultDir = await syncVault({
+      repo: env("GITHUB_REPO"),
+      token: env("GITHUB_TOKEN"),
+      cacheDir,
+      subdir: vaultName,
+    });
+  }
 
   const today = londonToday();
-  const notes = await loadNotes(cacheDir);
+  const notes = await loadNotes(vaultDir);
 
   // Same month + day, any prior year.
   const matches = notes
@@ -48,7 +64,7 @@ async function main() {
     month: "long",
   }).format(new Date(Date.UTC(2000, today.month - 1, today.day)));
 
-  const html = renderEmail(matches, { vaultName: env("OBSIDIAN_VAULT"), dayLabel });
+  const html = renderEmail(matches, { vaultName, dayLabel });
 
   await sendEmail({
     apiKey: env("RESEND_API_KEY"),

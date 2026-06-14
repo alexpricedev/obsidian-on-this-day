@@ -1,0 +1,9 @@
+[build]
+builder = "DOCKERFILE"
+
+[deploy]
+# Run-to-completion cron job. NEVER restart — a cron service must exit and stay
+# exited, or Railway skips the next scheduled run.
+restartPolicyType = "NEVER"
+# 07:00 UTC daily. Railway cron runs in UTC; the app maps "today" to Europe/London.
+cronSchedule = "0 7 * * *"

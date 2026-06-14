@@ -1,0 +1,5 @@
+.git
+.env
+.vault-cache
+node_modules
+.context

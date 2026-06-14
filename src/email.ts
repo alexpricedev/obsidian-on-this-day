@@ -1,4 +1,4 @@
-import type { DateParts, Note } from "./vault";
+import type { DateParts, MediaCounts, Note } from "./vault";
 
 type DatedNote = Note & { date: DateParts };
 
@@ -18,12 +18,25 @@ function obsidianUri(vaultName: string, relPath: string): string {
 function excerpt(body: string, len = 240): string {
   const text = body
     .replace(/^#.*$/gm, "") // headings
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, "") // images
+    .replace(/!\[\[[^\]]*\]\]/g, "") // obsidian embeds ![[file]]
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "") // markdown embeds ![](file)
+    .replace(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g, (_, a, b) => b || a) // wikilinks -> text
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // links -> link text
     .replace(/[*_`>#]/g, "")
     .replace(/\s+/g, " ")
     .trim();
   return text.length > len ? `${text.slice(0, len).trimEnd()}…` : text;
+}
+
+/** "📷 2 photos · 🎥 1 video" placeholder, or "" when the note has no media. */
+function mediaLine(media: MediaCounts): string {
+  const parts: string[] = [];
+  if (media.images) parts.push(`📷 ${media.images} photo${media.images > 1 ? "s" : ""}`);
+  if (media.videos) parts.push(`🎥 ${media.videos} video${media.videos > 1 ? "s" : ""}`);
+  if (parts.length === 0) return "";
+  return `<div style="margin:10px 0 0;font-size:13px;color:#8a8a8a;font-weight:600;">${parts.join(
+    "&nbsp;&nbsp;·&nbsp;&nbsp;",
+  )}<span style="font-weight:400;color:#b0b0b0;"> — open to view</span></div>`;
 }
 
 export function renderEmail(
@@ -41,6 +54,7 @@ export function renderEmail(
             <div style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#9a9a9a;font-weight:600;">${n.date.year}</div>
             <a href="${uri}" style="display:inline-block;margin:4px 0 6px;font-size:17px;line-height:1.3;color:#1a1a1a;text-decoration:none;font-weight:600;">${escapeHtml(n.title)}</a>
             ${ex ? `<div style="font-size:14px;line-height:1.55;color:#555555;">${escapeHtml(ex)}</div>` : ""}
+            ${mediaLine(n.media)}
           </td></tr>
         </table>
       </td></tr>`;
