@@ -44,6 +44,24 @@ GITHUB_TOKEN="github_pat_..."   # a token with read-only Contents access
 VAULT_CACHE_DIR="./.vault-cache" # optional; where the clone is kept
 ```
 
+### Creating the GitHub token
+
+`GITHUB_TOKEN` only needs read access to the contents of your vault repo. Create a
+**fine-grained personal access token** scoped to just that repo:
+
+1. Go to **GitHub → Settings → Developer settings → Fine-grained tokens**, or
+   open <https://github.com/settings/personal-access-tokens/new>.
+2. Give it a name (e.g. `obsidian-on-this-day`) and an expiry.
+3. Under **Repository access**, choose **Only select repositories** and pick your
+   vault repo.
+4. Under **Permissions → Repository permissions**, set **Contents** to
+   **Read-only**. Leave everything else as **No access**.
+5. Click **Generate token** and copy the `github_pat_...` value into
+   `GITHUB_TOKEN`. You won't be able to see it again, so store it safely.
+
+> Prefer fine-grained tokens over classic ones — they can be locked to a single
+> repo with read-only access, which is all this job needs.
+
 > Note: git-commit-date resolution (step 2.3 above) only works when the vault is
 > a git repository — i.e. in GitHub mode, or in local mode if your vault folder
 > is itself a git repo. Notes with no date from any source are skipped.
