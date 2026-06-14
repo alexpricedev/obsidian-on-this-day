@@ -55,6 +55,9 @@ export function renderEmail(
             <a href="${uri}" style="display:inline-block;margin:4px 0 6px;font-size:17px;line-height:1.3;color:#1a1a1a;text-decoration:none;font-weight:600;">${escapeHtml(n.title)}</a>
             ${ex ? `<div style="font-size:14px;line-height:1.55;color:#555555;">${escapeHtml(ex)}</div>` : ""}
             ${mediaLine(n.media)}
+            <div style="margin-top:14px;">
+              <a href="${uri}" style="display:inline-block;padding:9px 16px;background:#6c4cf0;color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;border-radius:8px;">Open in Obsidian&nbsp;↗</a>
+            </div>
           </td></tr>
         </table>
       </td></tr>`;
