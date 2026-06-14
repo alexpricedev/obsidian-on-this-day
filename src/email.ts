@@ -65,7 +65,10 @@ export function renderEmail(
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f4;padding:28px 12px;">
     <tr><td align="center">
       <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-        <tr><td style="padding:0 4px 20px;">
+        <tr><td style="padding:0 4px 18px;border-bottom:1px solid #ececec;">
+          <div style="font-size:18px;font-weight:700;color:#1a1a1a;">${escapeHtml(opts.vaultName)}</div>
+        </td></tr>
+        <tr><td style="padding:20px 4px;">
           <div style="font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:#9a9a9a;font-weight:600;">On this day</div>
           <div style="font-size:26px;font-weight:700;color:#1a1a1a;margin-top:2px;">${opts.dayLabel}</div>
         </td></tr>

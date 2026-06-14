@@ -76,10 +76,24 @@ function splitFrontmatter(raw: string): { fm: Record<string, string>; body: stri
   return { fm, body };
 }
 
-function titleOf(body: string, name: string): string {
+function titleOf(body: string, name: string, date: DateParts | null): string {
   const h1 = body.match(/^#\s+(.+)$/m);
   if (h1) return h1[1].trim();
-  return name.replace(ISO_DATE, "").replace(/[-_]+/g, " ").trim() || name;
+
+  // Filename with any ISO date stripped (daily notes like 2022-06-14 leave nothing).
+  const fromName = name.replace(ISO_DATE, "").replace(/[-_]+/g, " ").trim();
+  // Only use it if it has real words — not leftover digits like "000".
+  if (/[a-z]/i.test(fromName)) return fromName;
+
+  // Fall back to the note's date label ("14 June"); the card shows the year.
+  if (date) {
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "long",
+    }).format(new Date(Date.UTC(date.year, date.month - 1, date.day)));
+  }
+
+  return name;
 }
 
 /**
@@ -137,12 +151,13 @@ export async function loadNotes(vaultDir: string): Promise<Note[]> {
     const raw = await readFile(absPath, "utf8");
     const { fm, body } = splitFrontmatter(raw);
     const name = basename(absPath, ".md");
+    const date = await resolveDate(absPath, name, fm, vaultDir);
     notes.push({
       absPath,
       relPath: relative(vaultDir, absPath),
-      title: titleOf(body, name),
+      title: titleOf(body, name, date),
       body,
-      date: await resolveDate(absPath, name, fm, vaultDir),
+      date,
       media: countMedia(body),
     });
   }
