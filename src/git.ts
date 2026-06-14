@@ -31,12 +31,16 @@ export async function syncVault({ repo, token, cacheDir, subdir }: SyncOptions):
   const url = `https://x-access-token:${token}@github.com/${repo}.git`;
   const patterns = subdir ? [`/${subdir}/**/*.md`, `/${subdir}/*.md`] : ["/**/*.md"];
 
+  // We don't .quiet() git: on a fresh container the clone authenticates over
+  // HTTPS with the token, and if that fails we want git's own error (bad creds,
+  // missing repo, network) to reach the logs rather than a silent non-zero exit.
+  // Bun's $ throws on non-zero exit, so failures still propagate.
   if (existsSync(join(cacheDir, ".git"))) {
-    await $`git -C ${cacheDir} pull --ff-only`.quiet();
+    await $`git -C ${cacheDir} pull --ff-only`;
   } else {
-    await $`git clone --filter=blob:none --depth 1 --no-checkout ${url} ${cacheDir}`.quiet();
-    await $`git -C ${cacheDir} sparse-checkout set --no-cone ${patterns}`.quiet();
-    await $`git -C ${cacheDir} checkout`.quiet();
+    await $`git clone --filter=blob:none --depth 1 --no-checkout ${url} ${cacheDir}`;
+    await $`git -C ${cacheDir} sparse-checkout set --no-cone ${patterns}`;
+    await $`git -C ${cacheDir} checkout`;
   }
 
   return subdir ? join(cacheDir, subdir) : cacheDir;

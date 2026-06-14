@@ -29,11 +29,14 @@ async function main() {
   //   github — clone the vault repo (used on Railway, which has no local copy)
   let vaultDir: string;
   if (process.env.VAULT_ROOT_PATH) {
+    console.log(`Vault source: local (${process.env.VAULT_ROOT_PATH})`);
     vaultDir = join(process.env.VAULT_ROOT_PATH, vaultName);
   } else {
+    const repo = env("GITHUB_REPO");
     const cacheDir = process.env.VAULT_CACHE_DIR ?? "./.vault-cache";
+    console.log(`Vault source: github (${repo}) → ${cacheDir}`);
     vaultDir = await syncVault({
-      repo: env("GITHUB_REPO"),
+      repo,
       token: env("GITHUB_TOKEN"),
       cacheDir,
       subdir: vaultName,
@@ -42,6 +45,7 @@ async function main() {
 
   const today = londonToday();
   const notes = await loadNotes(vaultDir);
+  console.log(`Loaded ${notes.length} note(s) from "${vaultName}".`);
 
   // Same month + day, any prior year.
   const matches = notes
@@ -78,6 +82,14 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
-  process.exit(1);
+  // Surface what failed. Bun's ShellError carries the failing exit code but a
+  // terse message ("Failed with exit code N") — the underlying git output is
+  // already streamed live above, so this just labels the failure. Neither the
+  // message nor stderr includes the token (Bun redacts URL credentials).
+  console.error("on-this-day run failed:");
+  console.error(err instanceof Error ? (err.stack ?? err.message) : String(err));
+  // Set exitCode rather than process.exit() so buffered logs flush before exit;
+  // a non-zero code still marks the scheduled run as failed.
+  const code = (err as { exitCode?: number })?.exitCode;
+  process.exitCode = typeof code === "number" && code !== 0 ? code : 1;
 });
