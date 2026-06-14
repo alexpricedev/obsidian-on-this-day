@@ -9,7 +9,7 @@ interface SyncOptions {
   token: string;
   /** Local directory to hold the clone (persist via a volume to make runs cheap) */
   cacheDir: string;
-  /** Vault folder inside the repo to fetch (e.g. "ADP Journal"); omit to fetch all */
+  /** Vault folder inside the repo to fetch (e.g. "My Journal"); omit to fetch all */
   subdir?: string;
 }
 
