@@ -55,7 +55,11 @@ async function main() {
     return;
   }
 
-  const html = renderEmail(matches, { vaultName, dayLabel });
+  const html = renderEmail(matches, {
+    vaultName,
+    dayLabel,
+    redirectBase: process.env.REDIRECT_BASE_URL,
+  });
   const out = ".context/email-preview.html";
   await writeFile(out, html, "utf8");
 

@@ -10,9 +10,22 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function obsidianUri(vaultName: string, relPath: string): string {
+/**
+ * Build the link a note card points at.
+ *
+ * Without `redirectBase` it's a raw `obsidian://` deep link — clickable in
+ * clients that keep custom-protocol links (e.g. Apple Mail). Many webmail
+ * clients (Proton Mail, Gmail) strip those, so when `redirectBase` is set we
+ * point at an https redirect page that reconstructs and forwards to the
+ * obsidian:// URI — https survives every client.
+ */
+function noteLink(vaultName: string, relPath: string, redirectBase?: string): string {
   const file = relPath.replace(/\.md$/, "");
-  return `obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(file)}`;
+  if (!redirectBase) {
+    return `obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(file)}`;
+  }
+  const sep = redirectBase.includes("?") ? "&" : "?";
+  return `${redirectBase}${sep}vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(file)}`;
 }
 
 function excerpt(body: string, len = 240): string {
@@ -41,11 +54,11 @@ function mediaLine(media: MediaCounts): string {
 
 export function renderEmail(
   notes: DatedNote[],
-  opts: { vaultName: string; dayLabel: string },
+  opts: { vaultName: string; dayLabel: string; redirectBase?: string },
 ): string {
   const cards = notes
     .map((n) => {
-      const uri = obsidianUri(opts.vaultName, n.relPath);
+      const uri = noteLink(opts.vaultName, n.relPath, opts.redirectBase);
       const ex = excerpt(n.body);
       return `
       <tr><td style="padding:0 0 16px 0;">

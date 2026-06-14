@@ -85,8 +85,36 @@ cp .env.example .env
 | `RESEND_API_KEY`  | yes      | Your Resend API key.                                                        |
 | `EMAIL_FROM`      | yes      | Sender, e.g. `On This Day <onthisday@yourdomain.com>`. Domain must be verified in Resend. |
 | `EMAIL_TO`        | yes      | Recipient address.                                                          |
+| `REDIRECT_BASE_URL` | no     | URL of the https redirect page, to make note links clickable in webmail. See [Clickable links](#clickable-note-links). |
 
 `VAULT_NAME` is also used as the title shown at the top of the email.
+
+## Clickable note links
+
+Each note links back to Obsidian with an `obsidian://` deep link. These are
+clickable in clients that preserve custom-protocol links (e.g. **Apple Mail**),
+but many webmail clients — **Proton Mail, Gmail** — strip `obsidian://` links for
+security, so the button won't be clickable there.
+
+To make links work everywhere, set `REDIRECT_BASE_URL` to an `https://` page that
+forwards to the deep link. The repo ships one ready to use at
+[`docs/index.html`](docs/index.html): it reads `?vault=&file=` from the URL,
+rebuilds the `obsidian://` URI, and forwards to it. Because the email then links
+over https, every client keeps the link; the redirect happens when you click.
+
+Host it for free on **GitHub Pages**:
+
+1. Push this repo to GitHub (the `docs/` folder is already included).
+2. In the repo: **Settings → Pages → Build and deployment**, set **Source** to
+   "Deploy from a branch", branch `main`, folder **`/docs`**. Save.
+3. Your page will be served at `https://<user>.github.io/<repo>/`.
+4. Set `REDIRECT_BASE_URL` to that URL (with the trailing slash).
+
+When `REDIRECT_BASE_URL` is unset, links fall back to raw `obsidian://` — fine if
+you only read in Apple Mail.
+
+> If your Resend domain has **click tracking** enabled, turn it off — it rewrites
+> every link into a tracking redirect, which breaks the handoff to Obsidian.
 
 ## Usage
 

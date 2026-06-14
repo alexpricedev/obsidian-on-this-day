@@ -68,7 +68,11 @@ async function main() {
     month: "long",
   }).format(new Date(Date.UTC(2000, today.month - 1, today.day)));
 
-  const html = renderEmail(matches, { vaultName, dayLabel });
+  const html = renderEmail(matches, {
+    vaultName,
+    dayLabel,
+    redirectBase: process.env.REDIRECT_BASE_URL,
+  });
 
   await sendEmail({
     apiKey: env("RESEND_API_KEY"),
