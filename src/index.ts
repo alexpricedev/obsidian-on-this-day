@@ -2,12 +2,7 @@ import { join } from "node:path";
 import { syncVault } from "./git";
 import { renderEmail, sendEmail } from "./email";
 import { loadNotes, type DateParts, type Note } from "./vault";
-
-function env(key: string): string {
-  const v = process.env[key];
-  if (!v) throw new Error(`Missing required env var: ${key}`);
-  return v;
-}
+import { loadConfig, type Delivery, type JournalConfig } from "./config";
 
 /** Today's date in Europe/London, as plain calendar parts. */
 function londonToday(): DateParts {
@@ -21,31 +16,26 @@ function londonToday(): DateParts {
   return { year, month, day };
 }
 
-async function main() {
-  const vaultName = env("VAULT_NAME");
-
-  // Two source modes:
-  //   local  — VAULT_ROOT_PATH points at a folder already on disk
-  //   github — clone the vault repo (used on Railway, which has no local copy)
-  let vaultDir: string;
-  if (process.env.VAULT_ROOT_PATH) {
-    console.log(`Vault source: local (${process.env.VAULT_ROOT_PATH})`);
-    vaultDir = join(process.env.VAULT_ROOT_PATH, vaultName);
-  } else {
-    const repo = env("GITHUB_REPO");
-    const cacheDir = process.env.VAULT_CACHE_DIR ?? "./.vault-cache";
-    console.log(`Vault source: github (${repo}) → ${cacheDir}`);
-    vaultDir = await syncVault({
-      repo,
-      token: env("GITHUB_TOKEN"),
-      cacheDir,
-      subdir: vaultName,
-    });
+/** Resolve the on-disk directory to scan for one journal's notes. */
+async function resolveVaultDir(journal: JournalConfig): Promise<string> {
+  if (journal.source.kind === "local") {
+    console.log(`[${journal.name}] source: local (${journal.source.rootPath})`);
+    return join(journal.source.rootPath, journal.name);
   }
+  console.log(`[${journal.name}] source: github (${journal.source.repo}) → ${journal.source.cacheDir}`);
+  return syncVault({
+    repo: journal.source.repo,
+    token: journal.source.token,
+    cacheDir: journal.source.cacheDir,
+    subdir: journal.name,
+  });
+}
 
-  const today = londonToday();
+/** Sync, find "on this day" notes, and email one journal's recipient. */
+async function runJournal(journal: JournalConfig, today: DateParts, delivery: Delivery): Promise<void> {
+  const vaultDir = await resolveVaultDir(journal);
   const notes = await loadNotes(vaultDir);
-  console.log(`Loaded ${notes.length} note(s) from "${vaultName}".`);
+  console.log(`[${journal.name}] loaded ${notes.length} note(s).`);
 
   // Same month + day, any prior year.
   const matches = notes
@@ -58,31 +48,56 @@ async function main() {
     )
     .sort((a, b) => b.date.year - a.date.year); // most recent year first
 
-  if (matches.length === 0) {
-    console.log("Nothing on this day — skipping email.");
-    return;
-  }
-
   const dayLabel = new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "long",
   }).format(new Date(Date.UTC(2000, today.month - 1, today.day)));
 
+  if (matches.length === 0) {
+    console.log(`[${journal.name}] nothing on this day — skipping email.`);
+    return;
+  }
+
   const html = renderEmail(matches, {
-    vaultName,
+    vaultName: journal.name,
     dayLabel,
-    redirectBase: process.env.REDIRECT_BASE_URL,
+    redirectBase: journal.redirectBase,
   });
 
   await sendEmail({
-    apiKey: env("RESEND_API_KEY"),
-    from: env("EMAIL_FROM"),
-    to: env("EMAIL_TO"),
+    apiKey: delivery.apiKey,
+    from: delivery.from,
+    to: journal.to,
     subject: `On this day · ${dayLabel} · ${matches.length} note${matches.length > 1 ? "s" : ""}`,
     html,
   });
 
-  console.log(`Sent ${matches.length} note(s) for ${dayLabel}.`);
+  console.log(`[${journal.name}] sent ${matches.length} note(s) for ${dayLabel} → ${journal.to}.`);
+}
+
+async function main() {
+  const { journals, delivery } = loadConfig();
+  const today = londonToday();
+  console.log(`Processing ${journals.length} journal(s).`);
+
+  // Run journals independently: one journal failing (bad repo, sync error)
+  // must not stop the others from being delivered. Collect failures and
+  // exit non-zero at the end so the scheduled run is still marked failed.
+  const failures: Error[] = [];
+  for (const journal of journals) {
+    try {
+      await runJournal(journal, today, delivery);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error(`[${journal.name}] failed:`);
+      console.error(e.stack ?? e.message);
+      failures.push(e);
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`${failures.length} of ${journals.length} journal(s) failed.`);
+  }
 }
 
 main().catch((err) => {
