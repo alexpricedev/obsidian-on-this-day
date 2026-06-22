@@ -86,8 +86,32 @@ cp .env.example .env
 | `EMAIL_FROM`      | yes      | Sender, e.g. `On This Day <onthisday@yourdomain.com>`. Domain must be verified in Resend. |
 | `EMAIL_TO`        | yes      | Recipient address.                                                          |
 | `REDIRECT_BASE_URL` | no     | URL of the https redirect page, to make note links clickable in webmail. See [Clickable links](#clickable-note-links). |
+| `JOURNALS`        | no       | JSON array to deliver several vaults to several recipients in one run. See [Multiple journals](#multiple-journals). Overrides the single-journal `VAULT_*`/`EMAIL_TO` vars. |
 
 `VAULT_NAME` is also used as the title shown at the top of the email.
+
+### Multiple journals
+
+To send more than one person their own email — each from a different vault/repo to
+a different address — set `JOURNALS` to a JSON array instead of the single-journal
+variables above. `RESEND_API_KEY` and `EMAIL_FROM` stay shared across all of them.
+
+```bash
+JOURNALS='[
+  {"name":"My Journal","to":"me@example.com","repo":"me/journal"},
+  {"name":"Annette","to":"annette@example.com","repo":"me/annette-journal"}
+]'
+```
+
+Each entry requires `name` (the vault folder, also the Obsidian vault name) and
+`to`. The source is either `rootPath` (local mode) or `repo` (GitHub mode); the
+optional `token`, `cacheDir`, and `redirectBase` fall back to the top-level
+`GITHUB_TOKEN`, `VAULT_CACHE_DIR`, and `REDIRECT_BASE_URL` when omitted, so common
+values needn't be repeated. Each GitHub journal is cloned into its own cache
+subdir. Journals run independently — one failing (bad repo, sync error) still lets
+the others send, and the run is marked failed only if any journal failed.
+
+When `JOURNALS` is unset, the single-journal variables above are used as before.
 
 ## Clickable note links
 
